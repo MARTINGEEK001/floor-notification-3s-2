@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Floor Notify Console</title>
+<link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+.top{display:flex;align-items:center;gap:16px;padding:14px 22px 12px;background:var(--surface);flex-wrap:wrap}
+.top h1{font-size:26px;line-height:1}
+.top .sub{color:var(--muted);font-size:14px}
+.top .grow{flex:1}
+.tape{height:8px;background:repeating-linear-gradient(-45deg,var(--yellow) 0 12px,var(--ink) 12px 24px)}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:22px;padding:20px 22px 40px;max-width:1500px;margin:0 auto}
+@media (max-width:1050px){.layout{grid-template-columns:1fr}}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:18px;overflow-x:auto}
+.tab{border:0;background:none;padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--teal)}
+.panel h2{font-size:22px;margin-bottom:4px}
+.panel .lead{color:var(--muted);margin:0 0 16px;max-width:70ch}
+label.f{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:4px}
+textarea{resize:vertical;min-height:60px}
+.meta{display:grid;grid-template-columns:180px 1fr;gap:14px;margin-bottom:18px}
+@media (max-width:640px){.meta{grid-template-columns:1fr}}
+.st{background:var(--surface);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;display:grid;grid-template-columns:200px 1fr 1fr;overflow:hidden}
+.st.off{opacity:.55}
+@media (max-width:900px){.st{grid-template-columns:1fr}}
+.st > div{padding:12px 14px}
+.st .who{background:var(--sunk);display:flex;flex-direction:column;gap:6px}
+.st .who b{font-size:16px}
+.st .who .station{color:var(--muted);font-size:13px}
+.st .who .ipads{font-size:13px;color:var(--muted)}
+.st .who .ipads.none{color:var(--danger)}
+.st .col h3{font-size:16px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.st .col + .col{border-left:1px solid var(--line)}
+@media (max-width:900px){.st .col + .col{border-left:0;border-top:1px solid var(--line)}}
+.chip3s{display:inline-block;width:10px;height:10px;background:var(--yellow);border-radius:2px;flex:none}
+.chipdev{display:inline-block;width:10px;height:10px;background:var(--teal);border-radius:50%;flex:none}
+.pillars{display:flex;gap:4px;margin-bottom:8px;flex-wrap:wrap}
+.pillars button{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;font-size:13px;font-weight:600}
+.pillars button[aria-pressed="true"]{background:var(--yellow);border-color:var(--yellow);color:#1C2629}
+.st input + textarea{margin-top:6px}
+.devlist{display:flex;flex-direction:column;gap:6px;margin-bottom:8px}
+.dev{display:grid;grid-template-columns:minmax(130px,1.5fr) 58px minmax(60px,1fr) 24px;gap:6px;align-items:center}
+.dev .x{border:0;background:none;color:var(--muted);font-size:18px;line-height:1}
+.dev .x:hover{color:var(--danger)}
+.toggle{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:500;cursor:pointer}
+.toggle input{width:18px;height:18px;accent-color:var(--teal)}
+.empty{border:1px dashed var(--line);border-radius:10px;padding:26px;text-align:center;color:var(--muted)}
+.sendbar{position:sticky;bottom:0;margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-wrap:wrap;align-items:center;gap:16px;box-shadow:0 -6px 20px -12px rgba(0,0,0,.25)}
+.sendbar .grow{flex:1}
+.aside{position:sticky;top:16px;align-self:start}
+@media (max-width:1050px){.aside{position:static}}
+.aside h2{font-size:20px;margin-bottom:8px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:transparent;padding:5px 10px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.prevctl{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.prevctl select{width:auto;flex:1}
+.ipad{border-radius:28px;background:#0d0f10;padding:14px;box-shadow:0 18px 40px -20px rgba(0,0,0,.5)}
+.ipad .screen{border-radius:16px;aspect-ratio:4/3;overflow:hidden;position:relative;font-size:7.2px}
+.looktab .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px;max-width:760px}
+.looktab .full{grid-column:1/-1}
+@media (max-width:640px){.looktab .grid{grid-template-columns:1fr}}
+.tokens{font-size:13px;color:var(--muted)}
+.tokens code{background:var(--sunk);padding:1px 5px;border-radius:4px;font-size:12px}
+.swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.swatches button{width:28px;height:28px;border-radius:7px;border:2px solid transparent}
+.swatches button[aria-pressed="true"]{border-color:var(--ink)}
+.swatches input[type=color]{width:34px;height:30px;border:1px solid var(--line);border-radius:7px;padding:2px;background:var(--surface)}
+.osnote{background:var(--sunk);border-radius:10px;padding:12px 14px;color:var(--muted);font-size:14px;max-width:760px;margin-top:18px}
+.roster .r{display:grid;grid-template-columns:1fr 1fr 1fr 32px;gap:8px;margin-bottom:8px;align-items:center}
+@media (max-width:700px){.roster .r{grid-template-columns:1fr 1fr 32px}.roster .r .ip{grid-column:1/-1}}
+.roster .ip{font-size:13px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.roster .ip.none{color:var(--danger)}
+.hist .h{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin-bottom:10px}
+.hist .hh{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.hist .hh b{font-size:15px}
+.hist .hh .t{color:var(--muted);font-size:13px}
+.hist .hh .grow{flex:1}
+.seen{display:flex;flex-wrap:wrap;gap:6px}
+.seen span{font-size:13px;padding:3px 9px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.seen span.y{background:color-mix(in srgb,var(--ok) 18%,transparent);color:var(--ok);font-weight:600}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="/shared.js"></script>
+<script>
+(() => {
+"use strict";
+const { $, el, ls, safeColor, keyOf, todayKey, mondayOf, parseKey, dayLabel, shortDay, weekLabel, clockText, ago, uid, debounce, toast, look, api, messageText, bannerEl, cardEl, PILLARS, DEFAULT_LOOK, ICON } = SN;
+const COLORS = ["#13675F","#1F4FB8","#7A3FB0","#B3412F","#C98A0A","#2E7D4F","#1C2629"];
+const WALLS = ["#1C3A3A","#16233F","#2B1F3A","#3A2A1C","#20262A","#0F4C5C"];
+
+let PIN = ls.get("admin-pin", null);
+let ROSTER = { stations: [], products: [] }, LOOK = { ...DEFAULT_LOOK }, DRAFT = null;
+let SENDS = [], ACKS = [], DEVICES = [];
+let tab = "compose";
+let AUTH_MODE = "app";
+let preview = { sid: null, mode: "lock", kind: "3s" };
+const A = (path, opts = {}) => api(path, { ...opts, admin: PIN });
+
+/* ---------- first-run setup ---------- */
+function showSetup(msg) {
+  const pin = el("input", { type: "password", inputmode: "numeric", autocomplete: "new-password", placeholder: "Your PIN (4 or more characters)", "aria-label": "Your PIN" });
+  const pin2 = el("input", { type: "password", inputmode: "numeric", autocomplete: "new-password", placeholder: "Type your PIN again", "aria-label": "Confirm PIN" });
+  const code = el("input", { type: "text", autocomplete: "off", placeholder: "Floor code for the iPads", "aria-label": "Floor code" });
+  const err = el("div", { class: "err", text: msg || "" });
+  const btn = el("button", { class: "btn primary", type: "submit", text: "Finish setup" });
+  const form = el("form", { style: "flex-direction:column;width:min(360px,100%)", onsubmit: async e => {
+    e.preventDefault(); err.textContent = "";
+    if (pin.value !== pin2.value) { err.textContent = "The two PINs don’t match."; return; }
+    btn.disabled = true;
+    try {
+      await api("setup", { method: "POST", body: { pin: pin.value, code: code.value } });
+      PIN = pin.value; ls.set("admin-pin", PIN);
+      toast(`Saved. Write down your floor code: ${code.value}`);
+      start();
+    } catch (x) { err.textContent = x.message; btn.disabled = false; }
+  } }, pin, pin2, code, btn);
+  $("#app").replaceChildren(el("div", { class: "gate" }, el("img", { src: ICON, alt: "", width: "72", height: "72", style: "border-radius:16px" }),
+    el("h1", { text: "Set up Floor Notify" }),
+    el("p", { text: "Choose a PIN for you to sign in to this console, and a separate floor code that each iPad enters once. You can change both later under Stations & iPads." }),
+    form, err));
+  pin.focus();
+}
+
+/* ---------- sign in ---------- */
+function showLogin(msg) {
+  const input = el("input", { type: "password", inputmode: "numeric", autocomplete: "current-password", placeholder: "Supervisor PIN", "aria-label": "Supervisor PIN" });
+  const err = el("div", { class: "err", text: msg || "" });
+  const form = el("form", { onsubmit: async e => {
+    e.preventDefault(); err.textContent = "";
+    try { const r = await api("check", { method: "POST", admin: input.value }); if (r.admin) { PIN = input.value; ls.set("admin-pin", PIN); start(); } else err.textContent = "That PIN isn’t right."; }
+    catch (x) { err.textContent = x.message; }
+  } }, input, el("button", { class: "btn primary", type: "submit", text: "Sign in" }));
+  $("#app").replaceChildren(el("div", { class: "gate" }, el("img", { src: ICON, alt: "", width: "72", height: "72", style: "border-radius:16px" }),
+    el("h1", { text: "Floor Notify console" }), el("p", { text: "Enter your supervisor PIN." }), form, err,
+    el("p", {}, "Setting up a cleaner’s iPad? Open ", el("a", { href: "/station.html", text: "the station app" }), " on it instead.")));
+  input.focus();
+}
+
+/* ---------- load ---------- */
+async function start() {
+  if (!PIN) {
+    try { const c = await api("check", { method: "POST" }); if (c.needsSetup) return showSetup(); } catch (e) { return showLogin(e.message); }
+    return showLogin();
+  }
+  $("#app").replaceChildren(el("div", { class: "gate" }, el("p", { text: "Loading…" })));
+  let d;
+  try { d = await A("admin"); }
+  catch (e) { if (e.status === 401) { ls.set("admin-pin", null); PIN = null; return start(); } return showLogin(e.message); }
+  AUTH_MODE = d.authMode || "app";
+  ROSTER = d.roster; LOOK = look(d.look); SENDS = d.sends || []; ACKS = d.acks || []; DEVICES = d.devices || [];
+  DRAFT = d.draft && typeof d.draft === "object" ? d.draft : {};
+  DRAFT.weekOf = DRAFT.weekOf || keyOf(mondayOf(new Date()));
+  DRAFT.note = DRAFT.note || ""; DRAFT.rows = DRAFT.rows || {};
+  DRAFT.send3s = DRAFT.send3s !== false; DRAFT.sendDev = DRAFT.sendDev !== false;
+  if (DRAFT.devDay !== todayKey()) { for (const r of Object.values(DRAFT.rows)) r.devices = []; DRAFT.devDay = todayKey(); }
+  buildShell(); poll();
+}
+let pollTimer = null;
+function poll() {
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(async () => {
+    if (document.visibilityState === "visible") {
+      try { const d = await A("admin?part=status"); SENDS = d.sends || []; ACKS = d.acks || []; DEVICES = d.devices || []; setStatus(""); refreshLive(); }
+      catch (e) { setStatus(e.message, true); }
+    }
+    poll();
+  }, 45000);
+}
+document.addEventListener("visibilitychange", async () => {
+  if (document.visibilityState !== "visible" || !PIN || !DRAFT) return;
+  try { const d = await A("admin?part=status"); SENDS = d.sends || []; ACKS = d.acks || []; DEVICES = d.devices || []; refreshLive(); } catch {}
+});
+function refreshLive() { if ((tab === "sent" || tab === "stations") && !isEditing()) renderTab(); }
+const isEditing = () => { const a = document.activeElement; return a && /INPUT|TEXTAREA|SELECT/.test(a.tagName); };
+function setStatus(m, warn) { const s = $("#status"); if (s) { s.textContent = m; s.className = "status" + (warn ? " warn" : ""); } }
+
+const saveRoster = debounce(() => A("roster", { method: "PUT", body: ROSTER }).catch(e => toast("Couldn’t save stations: " + e.message)), 800);
+const saveLook = debounce(() => A("look", { method: "PUT", body: LOOK }).catch(e => toast("Couldn’t save look: " + e.message)), 800);
+const saveDraft = debounce(() => A("draft", { method: "PUT", body: DRAFT }).catch(() => {}), 1500);
+
+/* ---------- shell ---------- */
+function buildShell() {
+  $("#app").replaceChildren(
+    el("header", { class: "top" },
+      el("div", {}, el("h1", { text: "Floor Notify" }), el("div", { class: "sub", text: "3S assignments and daily devices, pushed to cleaner iPads" })),
+      el("span", { class: "grow" }),
+      el("span", { id: "status", class: "status" }),
+      el("button", { class: "btn ghost small", type: "button", text: "Sign out", onclick: () => { ls.set("admin-pin", null); PIN = null; showLogin(); } })),
+    el("div", { class: "tape", "aria-hidden": "true" }),
+    el("div", { class: "layout" },
+      el("main", {},
+        el("nav", { class: "tabs", role: "tablist" },
+          ...[["compose", "Compose"], ["look", "Message look"], ["stations", "Stations & iPads"], ["sent", "Sent"]].map(([k, t]) =>
+            el("button", { class: "tab", role: "tab", type: "button", "aria-selected": String(tab === k), "data-tab": k,
+              onclick: () => { tab = k; document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", String(b.dataset.tab === tab))); renderTab(); }, text: t }))),
+        el("section", { id: "tabBody" })),
+      el("aside", { class: "aside", id: "aside" })));
+  renderTab(); renderPreview();
+}
+function renderTab() { const b = $("#tabBody"); if (b) b.replaceChildren(({ compose: composeTab, look: lookTab, stations: stationsTab, sent: sentTab })[tab]()); }
+const ipadsFor = sid => DEVICES.filter(d => d.sid === sid);
+function rowFor(sid) {
+  if (!DRAFT.rows[sid]) DRAFT.rows[sid] = { include: true, s: "shine", area: "", tasks: "", devices: [] };
+  const r = DRAFT.rows[sid]; if (!Array.isArray(r.devices)) r.devices = []; return r;
+}
+const renderPreviewSoon = debounce(() => renderPreview(), 150);
+const draftChanged = () => { saveDraft(); renderPreviewSoon(); updateSendBar(); };
+
+/* ---------- compose ---------- */
+function composeTab() {
+  const wrap = el("div", { class: "panel" }, el("h2", { text: "Compose" }),
+    el("p", { class: "lead", text: "Set each cleaner’s 3S duty for the week and the devices they’re cleaning today. Your draft saves as you type; device lists clear each new day." }));
+  const week = el("input", { type: "date", value: DRAFT.weekOf, onchange: e => { DRAFT.weekOf = keyOf(mondayOf(parseKey(e.target.value))); e.target.value = DRAFT.weekOf; draftChanged(); } });
+  const note = el("textarea", { placeholder: "Optional note added to every message, e.g. “Bin 4 is full, use bin 5.”", oninput: e => { DRAFT.note = e.target.value; draftChanged(); } });
+  note.value = DRAFT.note;
+  wrap.append(el("div", { class: "meta" }, el("div", {}, el("label", { class: "f", text: "3S week starting" }), week), el("div", {}, el("label", { class: "f", text: "Note to everyone" }), note)));
+  if (!ROSTER.stations.length) {
+    wrap.append(el("div", { class: "empty" }, el("p", { text: "Add your stations and cleaners first, then come back to assign work." }),
+      el("button", { class: "btn primary", type: "button", text: "Add stations", onclick: () => { tab = "stations"; buildShell(); } })));
+    return wrap;
+  }
+  for (const st of ROSTER.stations) wrap.append(stationRow(st));
+  wrap.append(sendBar());
+  setTimeout(updateSendBar);
+  return wrap;
+}
+function stationRow(st) {
+  const r = rowFor(st.id);
+  const card = el("div", { class: "st" + (r.include ? "" : " off") });
+  const inc = el("input", { type: "checkbox" }); inc.checked = !!r.include;
+  inc.addEventListener("change", () => { r.include = inc.checked; card.classList.toggle("off", !r.include); draftChanged(); });
+  const pills = el("div", { class: "pillars", role: "group", "aria-label": "3S duty" });
+  for (const [k, p] of Object.entries(PILLARS)) pills.append(el("button", { type: "button", "aria-pressed": String(r.s === k), text: p.label,
+    onclick: e => { r.s = k; pills.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget))); draftChanged(); } }));
+  const area = el("input", { type: "text", placeholder: "Area, e.g. Cell 2 benches and ESD mats", oninput: e => { r.area = e.target.value; draftChanged(); } }); area.value = r.area || "";
+  const tasks = el("textarea", { placeholder: "Details (optional), one per line", oninput: e => { r.tasks = e.target.value; draftChanged(); } }); tasks.value = r.tasks || "";
+  const list = el("div", { class: "devlist" });
+  const drawDevs = () => {
+    list.replaceChildren();
+    r.devices.forEach((d, i) => {
+      const sel = el("select", { "aria-label": "Device", onchange: e => { d.p = e.target.value; draftChanged(); } },
+        ...[...new Set([...ROSTER.products, d.p])].filter(Boolean).map(p => el("option", { value: p, text: p })));
+      sel.value = d.p;
+      list.append(el("div", { class: "dev" }, sel,
+        el("input", { type: "number", min: "1", value: String(d.q), "aria-label": "Quantity", oninput: e => { d.q = Math.max(0, parseInt(e.target.value, 10) || 0); draftChanged(); } }),
+        el("input", { type: "text", placeholder: "Note", value: d.n || "", "aria-label": "Note", oninput: e => { d.n = e.target.value; draftChanged(); } }),
+        el("button", { class: "x", type: "button", "aria-label": "Remove device", text: "×", onclick: () => { r.devices.splice(i, 1); drawDevs(); draftChanged(); } })));
+    });
+    if (!r.devices.length) list.append(el("div", { class: "status", text: "No devices yet for today." }));
+  };
+  drawDevs();
+  const n = ipadsFor(st.id).length;
+  card.append(
+    el("div", { class: "who" }, el("b", { text: st.cleaner || "No cleaner named" }), el("span", { class: "station", text: st.name || "Unnamed station" }),
+      el("span", { class: "ipads" + (n ? "" : " none"), text: n ? `${n} iPad${n === 1 ? "" : "s"} with notifications on` : "No iPad set up yet" }),
+      el("label", { class: "toggle", style: "margin-top:auto" }, inc, "Send to this station")),
+    el("div", { class: "col" }, el("h3", {}, el("span", { class: "chip3s" }), "3S this week"), pills, area, tasks),
+    el("div", { class: "col" }, el("h3", {}, el("span", { class: "chipdev" }), "Devices today"), list,
+      el("button", { class: "btn small", type: "button", text: "Add device", onclick: () => { r.devices.push({ p: ROSTER.products[0] || "MacBook Air", q: 1, n: "" }); drawDevs(); draftChanged(); const s = list.querySelector(".dev:last-child select"); if (s) s.focus(); } })));
+  card.addEventListener("focusin", () => { if (preview.sid !== st.id) { preview.sid = st.id; renderPreview(); } });
+  return card;
+}
+function sendBar() {
+  const c3 = el("input", { type: "checkbox" }); c3.checked = DRAFT.send3s;
+  const cd = el("input", { type: "checkbox" }); cd.checked = DRAFT.sendDev;
+  c3.addEventListener("change", () => { DRAFT.send3s = c3.checked; draftChanged(); });
+  cd.addEventListener("change", () => { DRAFT.sendDev = cd.checked; draftChanged(); });
+  return el("div", { class: "sendbar" },
+    el("label", { class: "toggle" }, c3, "This week’s 3S"), el("label", { class: "toggle" }, cd, "Today’s devices"),
+    el("span", { class: "grow" }), el("span", { id: "sendInfo", class: "status" }),
+    el("button", { id: "sendBtn", class: "btn primary", type: "button", onclick: doSend, text: "Send" }));
+}
+function plan() {
+  const out = { "3s": {}, dev: {} };
+  for (const st of ROSTER.stations) {
+    const r = DRAFT.rows[st.id]; if (!r || !r.include) continue;
+    if (DRAFT.send3s && (r.area || r.tasks)) out["3s"][st.id] = { s: r.s, area: r.area || "", tasks: r.tasks || "" };
+    const devs = (r.devices || []).filter(d => d.p && d.q > 0);
+    if (DRAFT.sendDev && devs.length) out.dev[st.id] = { devices: devs.map(d => ({ p: d.p, q: d.q, n: d.n || "" })) };
+  }
+  return out;
+}
+function updateSendBar() {
+  const b = $("#sendBtn"), i = $("#sendInfo"); if (!b) return;
+  const p = plan(); const ids = new Set([...Object.keys(p["3s"]), ...Object.keys(p.dev)]);
+  b.disabled = !ids.size || sending;
+  b.textContent = ids.size ? `Send to ${ids.size} station${ids.size === 1 ? "" : "s"}` : "Send";
+  const parts = [];
+  if (DRAFT.send3s) parts.push(`${Object.keys(p["3s"]).length} with 3S`);
+  if (DRAFT.sendDev) parts.push(`${Object.keys(p.dev).length} with devices`);
+  i.textContent = ids.size ? parts.join(", ") : "Fill in an area or add devices to send.";
+}
+let sending = false;
+async function doSend() {
+  if (sending) return;
+  const p = plan(); const today = new Date();
+  const stations = {}; for (const st of ROSTER.stations) stations[st.id] = { name: st.name || "", cleaner: st.cleaner || "" };
+  const base = { dayKey: todayKey(), dayLabel: shortDay(today), weekOf: DRAFT.weekOf, weekLabel: weekLabel(DRAFT.weekOf), note: DRAFT.note || "", look: { ...LOOK }, stations };
+  const jobs = [];
+  for (const [kind, per] of [["3s", p["3s"]], ["dev", p.dev]]) {
+    if (!Object.keys(per).length) continue;
+    const job = { ...base, kind, per: {} };
+    for (const [sid, data] of Object.entries(per)) {
+      const t = messageText({ ...job, per: { [sid]: data } }, sid, LOOK);
+      job.per[sid] = { ...data, title: t.title.slice(0, 120), body: t.body.slice(0, 240) };
+    }
+    jobs.push(job);
+  }
+  if (!jobs.length) return;
+  sending = true; updateSendBar(); $("#sendBtn").textContent = "Sending…";
+  try {
+    const r = await A("send", { method: "POST", body: { jobs } });
+    const sids = Object.keys(r.report || {});
+    const reached = sids.filter(s => r.report[s].ok > 0).length;
+    const missing = sids.filter(s => !r.report[s].ok).map(s => (stations[s] && (stations[s].cleaner || stations[s].name)) || "a station");
+    toast(missing.length ? `Notified ${reached} of ${sids.length}. No iPad reached for ${missing.join(", ")}; they’ll see it when they open the app.` : `Notified all ${sids.length} station${sids.length === 1 ? "" : "s"}`);
+    const d = await A("admin?part=status"); SENDS = d.sends; ACKS = d.acks; DEVICES = d.devices;
+  } catch (e) { toast("Couldn’t send: " + e.message); }
+  finally { sending = false; updateSendBar(); }
+}
+
+/* ---------- look ---------- */
+function lookTab() {
+  const set = (k, v) => { LOOK[k] = v; saveLook(); renderPreview(); };
+  const field = (label, input, cls) => el("div", { class: cls || "" }, el("label", { class: "f", text: label }), input);
+  const txt = k => { const i = el("input", { type: "text", oninput: e => set(k, e.target.value) }); i.value = LOOK[k] || ""; return i; };
+  const swatch = (k, list) => {
+    const g = el("div", { class: "swatches" });
+    const custom = el("input", { type: "color", value: safeColor(LOOK[k]) || list[0], "aria-label": "Custom color", oninput: e => { set(k, e.target.value); g.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false")); } });
+    for (const c of list) g.append(el("button", { type: "button", style: `background:${c}`, "aria-label": c, "aria-pressed": String(LOOK[k] === c),
+      onclick: e => { set(k, c); custom.value = c; g.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === e.currentTarget))); } }));
+    g.append(custom); return g;
+  };
+  const tokens = el("div", { class: "tokens full" }, "Fill-ins: ", ...["{name}", "{station}", "{s}", "{area}", "{count}", "{devices}", "{day}", "{week}"].flatMap((t, i) => [i ? " " : "", el("code", { text: t })]));
+  return el("div", { class: "panel looktab" },
+    el("h2", { text: "Message look" }),
+    el("p", { class: "lead", text: "Write what the notification says, and style the screen cleaners see when they open it. Changes save automatically; messages already sent keep the look they had." }),
+    el("div", { class: "grid" },
+      field("3S notification title", txt("title3S")), field("3S notification text", txt("body3S")),
+      field("Devices notification title", txt("titleDev")), field("Devices notification text", txt("bodyDev")),
+      tokens,
+      field("Button and highlight color", swatch("accent", COLORS)),
+      field("Station screen background", swatch("wallpaper", WALLS)),
+      el("div", { class: "full" }, el("button", { class: "btn small", type: "button", text: "Reset to default look", onclick: () => { LOOK = { ...DEFAULT_LOOK }; saveLook(); renderTab(); renderPreview(); } }))),
+    el("div", { class: "osnote", text: "The banner shape, the sound and the app icon on the lock screen come from iPadOS. Each iPad can change the sound and banner style under Settings, then Notifications, then Floor Notify." }));
+}
+
+/* ---------- stations & iPads ---------- */
+function stationsTab() {
+  const list = el("div", {});
+  const draw = () => {
+    list.replaceChildren(el("div", { class: "r" }, el("label", { class: "f", text: "Station" }), el("label", { class: "f", text: "Cleaner" }), el("label", { class: "f ip", text: "iPads with notifications" }), el("span")));
+    ROSTER.stations.forEach((st, i) => {
+      const devs = ipadsFor(st.id);
+      const ip = el("div", { class: "ip" + (devs.length ? "" : " none") });
+      if (!devs.length) ip.append("None set up yet");
+      devs.forEach((d, j) => ip.append(el("span", { text: `iPad ${j + 1}, ${ago(d.at)}` }),
+        el("button", { class: "btn ghost small", type: "button", text: "Remove", onclick: async () => { if (!confirm("Stop notifications to this iPad? It can turn them back on from the station app.")) return; try { await A("device?key=" + encodeURIComponent(d.key), { method: "DELETE" }); DEVICES = DEVICES.filter(x => x.key !== d.key); draw(); } catch (e) { toast(e.message); } } })));
+      if (devs.length) ip.append(el("button", { class: "btn small", type: "button", text: "Send test", onclick: async () => { try { const r = await A("test", { method: "POST", body: { sid: st.id } }); toast(r.ok ? `Test sent to ${r.ok} iPad${r.ok === 1 ? "" : "s"}` : "No iPad reached. Open the station app on it and turn notifications on again."); } catch (e) { toast(e.message); } } }));
+      list.append(el("div", { class: "r" },
+        el("input", { type: "text", value: st.name || "", placeholder: "e.g. Cell 2 Bench 1", "aria-label": "Station name", oninput: e => { st.name = e.target.value; saveRoster(); } }),
+        el("input", { type: "text", value: st.cleaner || "", placeholder: "Cleaner’s name", "aria-label": "Cleaner name", oninput: e => { st.cleaner = e.target.value; saveRoster(); } }),
+        ip,
+        el("button", { class: "btn ghost small", type: "button", "aria-label": `Remove ${st.name || "station"}`, text: "×", onclick: () => { if (confirm(`Remove ${st.name || "this station"}?`)) { ROSTER.stations.splice(i, 1); saveRoster(); draw(); } } })));
+    });
+  };
+  draw();
+  const prods = el("textarea", { rows: "7", oninput: e => { ROSTER.products = e.target.value.split("\n").map(s => s.trim()).filter(Boolean); saveRoster(); } });
+  prods.value = ROSTER.products.join("\n");
+  return el("div", { class: "panel roster" },
+    el("h2", { text: "Stations & iPads" }),
+    el("p", { class: "lead" }, "One row per station. On each iPad, open ", el("b", { text: location.origin + "/station.html" }), " in Safari, add it to the Home Screen, then pick its station. When people rotate, change the cleaner here; the iPad keeps working."),
+    list,
+    el("button", { class: "btn", type: "button", text: "Add station", onclick: () => { ROSTER.stations.push({ id: "st" + uid(), name: "", cleaner: "" }); saveRoster(); draw(); const i = list.querySelector(".r:last-child input"); if (i) i.focus(); } }),
+    el("div", { style: "margin-top:26px;max-width:420px" }, el("label", { class: "f", text: "Device types to choose from (one per line)" }), prods),
+    codesSection());
+}
+function codesSection() {
+  const box = el("div", { style: "margin-top:30px;max-width:420px" }, el("h2", { text: "Sign-in codes", style: "font-size:18px;margin-bottom:6px" }));
+  if (AUTH_MODE === "env") { box.append(el("p", { class: "status", text: "Your PIN and floor code are set in Netlify’s environment variables, so change them there." })); return box; }
+  const pin = el("input", { type: "password", autocomplete: "new-password", placeholder: "New PIN (leave blank to keep)", "aria-label": "New PIN" });
+  const code = el("input", { type: "text", autocomplete: "off", placeholder: "New floor code (leave blank to keep)", "aria-label": "New floor code", style: "margin-top:8px" });
+  const save = el("button", { class: "btn", type: "button", text: "Save new codes", style: "margin-top:8px", onclick: async () => {
+    if (!pin.value && !code.value) { toast("Type a new PIN or floor code first."); return; }
+    try {
+      await A("credentials", { method: "PUT", body: { pin: pin.value || undefined, code: code.value || undefined } });
+      if (pin.value) { PIN = pin.value; ls.set("admin-pin", PIN); }
+      toast(code.value ? "Saved. Each iPad will ask for the new floor code next time it opens." : "Saved your new PIN.");
+      pin.value = ""; code.value = "";
+    } catch (e) { toast(e.message); }
+  } });
+  box.append(el("p", { class: "status", text: "Changing the floor code means every iPad has to enter the new one." }), pin, code, save);
+  return box;
+}
+
+/* ---------- sent ---------- */
+function sentTab() {
+  const wrap = el("div", { class: "panel hist" }, el("h2", { text: "Sent" }),
+    el("p", { class: "lead", text: "A message counts as seen when the cleaner taps “Got it.” Take a message back to remove it from the station app (a notification already on an iPad’s lock screen stays there)." }));
+  if (!SENDS.length) { wrap.append(el("div", { class: "empty", text: "Nothing sent yet. Messages you send show up here with who has seen them." })); return wrap; }
+  const seen = new Map(); for (const a of ACKS) { const k = a.sendId + "|" + a.sid; if (!seen.has(k) || seen.get(k) > a.at) seen.set(k, a.at); }
+  for (const s of SENDS) {
+    const ids = Object.keys(s.per || {});
+    const n = ids.filter(id => seen.has(s.id + "|" + id)).length;
+    wrap.append(el("div", { class: "h" },
+      el("div", { class: "hh" }, el("span", { class: s.kind === "3s" ? "chip3s" : "chipdev" }),
+        el("b", { text: s.kind === "3s" ? `3S, ${s.weekLabel || ""}` : `Devices, ${s.dayLabel || ""}` }),
+        el("span", { class: "t", text: `${new Date(s.createdAt).toLocaleString(undefined, { weekday: "short", hour: "numeric", minute: "2-digit" })}, seen by ${n} of ${ids.length}` }),
+        el("span", { class: "grow" }),
+        el("button", { class: "btn ghost small", type: "button", text: "Take back", onclick: async () => { if (!confirm("Remove this message from the station app?")) return; try { await A("send?id=" + encodeURIComponent(s.id), { method: "DELETE" }); SENDS = SENDS.filter(x => x.id !== s.id); renderTab(); toast("Taken back"); } catch (e) { toast(e.message); } } })),
+      el("div", { class: "seen" }, ...ids.map(id => { const st = (s.stations || {})[id] || {}; const at = seen.get(s.id + "|" + id); return el("span", { class: at ? "y" : "", text: `${st.cleaner || st.name || "Station"}${at ? ", seen " + ago(at) : ", not seen yet"}` }); }))));
+  }
+  return wrap;
+}
+
+/* ---------- preview ---------- */
+function previewSend() {
+  const sid = preview.sid;
+  const r = DRAFT.rows[sid];
+  const st = ROSTER.stations.find(s => s.id === sid) || {};
+  const per = {};
+  if (preview.kind === "3s") per[sid] = { s: (r && r.s) || "shine", area: (r && r.area) || "Cell 2 benches and ESD mats", tasks: (r && r.tasks) || "" };
+  else per[sid] = { devices: r && r.devices.length ? r.devices : [{ p: "MacBook Air", q: 6, n: "" }, { p: "iPad", q: 4, n: "" }] };
+  return { id: "preview", kind: preview.kind, per, createdAt: Date.now(), dayLabel: shortDay(new Date()), weekLabel: weekLabel(DRAFT.weekOf), note: DRAFT.note || "", look: { ...LOOK }, stations: { [sid]: { name: st.name || "Cell 2 Bench 1", cleaner: st.cleaner || "Cleaner" } } };
+}
+function renderPreview() {
+  const aside = $("#aside"); if (!aside) return;
+  if (!preview.sid || !ROSTER.stations.find(s => s.id === preview.sid)) preview.sid = (ROSTER.stations[0] && ROSTER.stations[0].id) || "demo";
+  const sel = el("select", { "aria-label": "Preview station", onchange: e => { preview.sid = e.target.value; renderPreview(); } },
+    ...(ROSTER.stations.length ? ROSTER.stations.map(s => el("option", { value: s.id, text: s.cleaner ? `${s.cleaner}, ${s.name}` : s.name || "Station" })) : [el("option", { value: "demo", text: "Sample station" })]));
+  sel.value = preview.sid;
+  const seg = (k, opts) => { const g = el("div", { class: "seg", role: "group" }); for (const [v, t] of opts) g.append(el("button", { type: "button", "aria-pressed": String(preview[k] === v), text: t, onclick: () => { preview[k] = v; renderPreview(); } })); return g; };
+  const send = previewSend();
+  const now = new Date();
+  const screen = el("div", { class: "screen", style: `background:${preview.mode === "lock" ? "linear-gradient(160deg,#2a3440,#0f1418)" : (safeColor(LOOK.wallpaper) || "#1C3A3A")}` });
+  screen.append(el("div", { class: "wall" }, el("div", { class: "clock", text: clockText(now) }), el("div", { class: "date", text: dayLabel(now) })));
+  if (preview.mode === "lock") screen.append(el("div", { class: "stack", style: "top:auto;bottom:3em" }, bannerEl(send, preview.sid, { when: "now", onclick: () => { preview.mode = "open"; renderPreview(); } })));
+  else screen.append(el("div", { class: "sheet" }, cardEl(send, preview.sid, { onAck: () => { preview.mode = "lock"; renderPreview(); } })));
+  aside.replaceChildren(
+    el("h2", { text: "iPad preview" }),
+    el("div", { class: "prevctl" }, sel),
+    el("div", { class: "prevctl" }, seg("kind", [["3s", "3S message"], ["dev", "Devices message"]]), seg("mode", [["lock", "Lock screen"], ["open", "Opened"]])),
+    el("div", { class: "ipad" }, screen),
+    el("p", { class: "status", style: "margin-top:10px", text: "The lock screen view is approximate; iPadOS draws the real banner. Empty fields show sample text here only." }));
+}
+
+start();
+})();
+</script>
+</body>
+</html>

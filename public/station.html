@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Floor Notify</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Floor Notify">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#13675F">
+<link rel="icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/shared.css">
+<style>
+body.main{background:#000;overflow:hidden;height:100%}
+.stationRoot{position:fixed;inset:0;font-size:clamp(9px,1.25vw,15px);padding-top:env(safe-area-inset-top,0px)}
+.stationRoot .boards{position:absolute;left:50%;bottom:calc(2.4em + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(90em,94%);display:grid;grid-template-columns:1fr 1fr;gap:1.4em}
+@media (max-width:700px){.stationRoot{font-size:9px}.stationRoot .boards{grid-template-columns:1fr}}
+.stationRoot .stack{top:calc(1.4em + env(safe-area-inset-top,0px))}
+.stationRoot .wall{justify-content:center;padding-bottom:6em}
+.stationRoot .wall .clock{margin-top:0}
+.stationRoot.busy .wall{justify-content:flex-end;padding-bottom:calc(17em + env(safe-area-inset-bottom,0px))}
+.stationRoot.busy .wall .clock{font-size:6em}
+@media (max-width:700px){.stationRoot.busy .wall{display:none}}
+.board{background:rgba(255,255,255,.14);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-radius:1.8em;padding:1.5em 1.8em;color:#fff;text-align:left;border:0;cursor:pointer;font-size:1em}
+.board .lb{font-size:1.4em;opacity:.75;display:flex;align-items:center;gap:.5em}
+.board .lb i{display:inline-block;width:.8em;height:.8em;border-radius:.2em}
+.board .big{font-family:"Barlow Condensed",sans-serif;font-weight:600;font-size:2.6em;line-height:1.1;margin-top:.15em}
+.board .sm{font-size:1.45em;opacity:.85;margin-top:.2em}
+.corner{position:absolute;right:1.4em;bottom:calc(.4em + env(safe-area-inset-bottom,0px));display:flex;gap:1em;align-items:center}
+.corner button{background:none;border:0;color:rgba(255,255,255,.55);font-size:1.25em;padding:.4em}
+.corner button:hover{color:#fff}
+.corner .off{color:#FFB4A3}
+.netwarn{position:absolute;top:calc(.8em + env(safe-area-inset-top,0px));right:1em;font-size:1.2em;color:#fff;background:rgba(179,65,47,.85);padding:.3em .8em;border-radius:999px;z-index:6}
+.steps{text-align:left;max-width:460px;margin:0;padding-left:1.3em;color:var(--ink)}
+.steps li{margin:.5em 0}
+.list{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px;width:min(720px,100%)}
+.list button{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;text-align:left}
+.list button b{display:block;font-size:17px}
+.list button span{color:var(--muted);font-size:14px}
+.big-btn{font-size:21px;padding:15px 36px;border-radius:14px}
+</style>
+</head>
+<body>
+<div id="app"><div class="gate"><p>Loading…</p></div></div>
+<script src="/shared.js"></script>
+<script>
+(() => {
+"use strict";
+const { $, el, ls, safeColor, todayKey, dayLabel, clockText, toast, look, api, ctxFor, bannerEl, cardEl, PILLARS, ICON } = SN;
+
+const isStandalone = () => window.navigator.standalone === true || matchMedia("(display-mode: standalone)").matches;
+const pushSupported = () => "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+
+let CODE = ls.get("floor-code", null);
+let SID = ls.get("station-id", null);
+let ROSTER = null, LOOK = look(null), SENDS = [], ACKED = new Set();
+let openId = new URLSearchParams(location.search).get("open");
+let netOK = true, shown = new Set(), hiddenBanners = new Set(), firstLoad = true, VAPID = null;
+if (openId) history.replaceState(null, "", "/station.html");
+const F = (path, opts = {}) => api(path, { ...opts, floor: CODE });
+
+let swReg = null;
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/sw.js", { scope: "/" }).then(r => { swReg = r; }).catch(() => {});
+  navigator.serviceWorker.addEventListener("message", e => {
+    const m = e.data || {};
+    if (m.type === "push") load();
+    if (m.type === "open" && m.id && m.id !== "test") { openId = m.id; load(); }
+  });
+}
+
+/* ---------- setup flow ---------- */
+function gate(...kids) { document.body.classList.remove("main"); $("#app").replaceChildren(el("div", { class: "gate" }, ...kids)); }
+
+function next() {
+  if (!isStandalone() && !ls.get("skip-install", false)) return showInstall();
+  if (!CODE) return showCode();
+  if (!ROSTER) return load();
+  if (!SID || !ROSTER.stations.find(s => s.id === SID)) return showPicker();
+  if (pushSupported() && Notification.permission === "default" && !sessionStorage.getItem("skip-notify")) return showNotify();
+  renderMain();
+}
+
+function showInstall() {
+  gate(el("img", { src: ICON, alt: "", width: "84", height: "84", style: "border-radius:18px" }),
+    el("h1", { text: "Add Floor Notify to the Home Screen" }),
+    el("p", { text: "Notifications only work when Floor Notify is opened from the Home Screen." }),
+    el("ol", { class: "steps" },
+      el("li", {}, "Tap the ", el("b", { text: "Share" }), " button at the top of Safari (the square with an arrow)."),
+      el("li", {}, "Tap ", el("b", { text: "Add to Home Screen" }), ", then ", el("b", { text: "Add" }), "."),
+      el("li", {}, "Close Safari and open ", el("b", { text: "Floor Notify" }), " from the Home Screen.")),
+    el("button", { class: "btn ghost", type: "button", text: "Continue in Safari without notifications", onclick: () => { ls.set("skip-install", true); next(); } }));
+}
+
+function showCode(msg) {
+  const input = el("input", { type: "password", inputmode: "numeric", placeholder: "Floor code", "aria-label": "Floor code" });
+  const err = el("div", { class: "err", text: msg || "" });
+  gate(el("img", { src: ICON, alt: "", width: "72", height: "72", style: "border-radius:16px" }),
+    el("h1", { text: "Enter the floor code" }), el("p", { text: "Your supervisor has it. You only need to enter it once on this iPad." }),
+    el("form", { onsubmit: async e => {
+      e.preventDefault(); err.textContent = "";
+      try { const r = await api("check", { method: "POST", floor: input.value }); if (r.floor) { CODE = input.value; ls.set("floor-code", CODE); load(); } else err.textContent = r.needsSetup ? "Floor Notify isn’t set up yet. Your supervisor needs to open the console first." : "That code isn’t right."; }
+      catch (x) { err.textContent = x.message; }
+    } }, input, el("button", { class: "btn primary", type: "submit", text: "Continue" })), err);
+  input.focus();
+}
+
+function showPicker() {
+  gate(el("h1", { text: "Which station is this iPad?" }),
+    el("p", { text: ROSTER.stations.length ? "Pick once. This iPad will remember it." : "No stations yet. Ask your supervisor to add them in the console." }),
+    el("div", { class: "list" }, ...ROSTER.stations.map(st => el("button", { type: "button", onclick: async () => {
+      SID = st.id; ls.set("station-id", SID); await syncSubscription(); load();
+    } }, el("b", { text: st.name || "Unnamed station" }), el("span", { text: st.cleaner || "No cleaner named" })))));
+}
+
+function showNotify(msg) {
+  const st = ROSTER.stations.find(s => s.id === SID) || {};
+  const err = el("div", { class: "err", text: msg || "" });
+  gate(el("h1", { text: "Turn on notifications" }),
+    el("p", { text: `New assignments for ${st.cleaner || st.name || "this station"} will appear on this iPad’s lock screen, even when Floor Notify is closed.` }),
+    el("button", { class: "btn primary big-btn", type: "button", text: "Turn on notifications", onclick: () => enableNotifications(err) }),
+    err,
+    el("button", { class: "btn ghost", type: "button", text: "Not now", onclick: () => { sessionStorage.setItem("skip-notify", "1"); next(); } }));
+}
+
+function b64ToBytes(b64) {
+  const pad = "=".repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, "+").replace(/_/g, "/"));
+  return Uint8Array.from(raw, c => c.charCodeAt(0));
+}
+async function getVapid() { if (!VAPID) VAPID = (await api("vapid")).publicKey; return VAPID; }
+
+async function enableNotifications(err) {
+  if (!pushSupported()) { err.textContent = "This iPad can’t get notifications here. Open Floor Notify from the Home Screen, and check the iPad is on iPadOS 16.4 or later."; return; }
+  let perm;
+  try { perm = await Notification.requestPermission(); } catch { perm = "denied"; }
+  if (perm !== "granted") { err.textContent = "Notifications are off. Turn them on in Settings, then Notifications, then Floor Notify."; return; }
+  try { await syncSubscription(true); toast("Notifications are on"); next(); }
+  catch (e) { err.textContent = "Couldn’t turn on notifications: " + e.message; }
+}
+
+async function syncSubscription(throwOnError) {
+  try {
+    if (!pushSupported() || Notification.permission !== "granted" || !SID) return false;
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(await getVapid()) });
+    const model = /iPad/.test(navigator.userAgent) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)) ? "iPad" : "Browser";
+    await F("subscribe", { method: "POST", body: { sid: SID, sub: sub.toJSON(), device: model } });
+    return true;
+  } catch (e) { if (throwOnError) throw e; return false; }
+}
+
+/* ---------- data ---------- */
+let loading = false;
+async function load() {
+  if (!CODE) return showCode();
+  if (loading) return; loading = true;
+  try {
+    const d = await F("state" + (SID ? "?sid=" + encodeURIComponent(SID) : ""));
+    ROSTER = d.roster; LOOK = look(d.look); SENDS = (d.sends || []).sort((a, b) => b.createdAt - a.createdAt); ACKED = new Set(d.acked || []);
+    netOK = true;
+  } catch (e) {
+    netOK = false;
+    if (e.status === 401) { CODE = null; ls.set("floor-code", null); loading = false; return showCode("The floor code changed. Enter the new one."); }
+    if (!ROSTER) { loading = false; return gate(el("h1", { text: "Can’t connect" }), el("p", { text: e.message }), el("button", { class: "btn primary", type: "button", text: "Try again", onclick: load })); }
+  }
+  loading = false;
+  if (firstLoad && ROSTER) { firstLoad = false; syncSubscription(); }
+  next();
+}
+let pollTimer = null;
+function schedulePoll() { clearTimeout(pollTimer); pollTimer = setTimeout(() => { if (document.visibilityState === "visible") load(); schedulePoll(); }, 90000); }
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible" && CODE) load(); });
+setInterval(() => { const c = $("#clock"); if (c) { const n = new Date(); c.textContent = clockText(n); $("#date").textContent = dayLabel(n); } }, 15000);
+
+async function updateBadge(n) {
+  try { if (n > 0 && navigator.setAppBadge) await navigator.setAppBadge(n); else if (navigator.clearAppBadge) await navigator.clearAppBadge(); } catch {}
+}
+async function clearDelivered(id) {
+  try { const reg = await navigator.serviceWorker.ready; (await reg.getNotifications({ tag: id })).forEach(n => n.close()); } catch {}
+}
+
+/* ---------- main screen ---------- */
+function renderMain() {
+  document.body.classList.add("main");
+  const st = ROSTER.stations.find(s => s.id === SID) || {};
+  const latest3 = SENDS.find(s => s.kind === "3s");
+  const latestDev = SENDS.find(s => s.kind === "dev" && s.dayKey === todayKey());
+  // a newer message of the same kind replaces an older one, so only the latest of each can be unread
+  const unread = [latestDev, latest3].filter(s => s && !ACKED.has(s.id)).sort((a, b) => b.createdAt - a.createdAt);
+  updateBadge(unread.length);
+  const fresh = unread.filter(s => !shown.has(s.id)); fresh.forEach(s => shown.add(s.id));
+
+  const root = el("div", { class: "stationRoot" + (unread.length ? " busy" : ""), style: `background:${safeColor(LOOK.wallpaper) || "#1C3A3A"}` });
+  const now = new Date();
+  root.append(el("div", { class: "wall" },
+    el("div", { class: "clock", id: "clock", text: clockText(now) }),
+    el("div", { class: "date", id: "date", text: dayLabel(now) }),
+    el("div", { class: "whoami", text: [st.cleaner, st.name].filter(Boolean).join(", ") })));
+  if (!netOK) root.append(el("div", { class: "netwarn", text: "Not connected" }));
+
+  const stack = el("div", { class: "stack" });
+  const visible = unread.filter(s => !hiddenBanners.has(s.id));
+  visible.slice(0, 2).forEach(s => stack.append(bannerEl(s, SID, { animate: fresh.includes(s), onclick: () => { openId = s.id; renderMain(); } })));
+  if (visible.length > 2) stack.append(el("button", { class: "pill", type: "button", text: `${visible.length - 2} more new`, onclick: () => { openId = visible[2].id; renderMain(); } }));
+  root.append(stack);
+
+  const boards = el("div", { class: "boards" });
+  if (latest3) {
+    const p = latest3.per[SID] || {};
+    boards.append(el("button", { class: "board", type: "button", onclick: () => { openId = latest3.id; renderMain(); } },
+      el("div", { class: "lb" }, el("i", { style: "background:#F0BE2C" }), `3S, ${latest3.weekLabel || "this week"}`),
+      el("div", { class: "big", text: (PILLARS[p.s] || {}).label || "3S" }), el("div", { class: "sm", text: p.area || "" })));
+  } else boards.append(el("div", { class: "board", style: "cursor:default" }, el("div", { class: "lb" }, el("i", { style: "background:#F0BE2C" }), "3S this week"), el("div", { class: "sm", text: "No assignment sent yet." })));
+  if (latestDev) {
+    const c = ctxFor(latestDev, SID);
+    boards.append(el("button", { class: "board", type: "button", onclick: () => { openId = latestDev.id; renderMain(); } },
+      el("div", { class: "lb" }, el("i", { style: `background:${safeColor(look(latestDev.look).accent) || "#13675F"};border-radius:50%` }), "Today’s devices"),
+      el("div", { class: "big", text: `${c.count} devices` }), el("div", { class: "sm", text: c.devices })));
+  } else boards.append(el("div", { class: "board", style: "cursor:default" }, el("div", { class: "lb" }, el("i", { style: "background:#13675F;border-radius:50%" }), "Today’s devices"), el("div", { class: "sm", text: "Nothing sent for today yet." })));
+  root.append(boards);
+
+  const notifOn = pushSupported() && Notification.permission === "granted";
+  root.append(el("div", { class: "corner" },
+    notifOn
+      ? el("button", { type: "button", text: "Send a test", onclick: async () => { try { const r = await F("test", { method: "POST", body: { sid: SID } }); if (!r.ok) { await syncSubscription(); toast("No notification reached this iPad. Try once more."); } } catch (e) { toast(e.message); } } })
+      : el("button", { class: "off", type: "button", text: "Notifications off", onclick: () => { sessionStorage.removeItem("skip-notify"); showNotify(Notification && Notification.permission === "denied" ? "Notifications are blocked. Turn them on in Settings, then Notifications, then Floor Notify." : ""); } }),
+    el("button", { type: "button", text: "Change station", onclick: () => { if (confirm("Change which station this iPad is?")) { SID = null; ls.set("station-id", null); showPicker(); } } })));
+
+  const open = openId && SENDS.find(s => s.id === openId);
+  if (open) {
+    const close = () => { openId = null; renderMain(); };
+    const isUnread = !ACKED.has(open.id);
+    root.append(el("div", { class: "sheet", onclick: e => { if (e.target === e.currentTarget) close(); } },
+      cardEl(open, SID, { interactive: true, onLater: close, ackLabel: isUnread ? "Got it" : "Done",
+        onAck: async () => {
+          if (isUnread) { ACKED.add(open.id); clearDelivered(open.id); F("ack", { method: "POST", body: { sid: SID, sendId: open.id } }).catch(() => { ACKED.delete(open.id); toast("Couldn’t reach the server. Tap Got it again in a minute."); renderMain(); }); }
+          close();
+        } })));
+  } else if (openId && !loading) {
+    openId = null;
+  }
+  $("#app").replaceChildren(root);
+}
+
+next();
+schedulePoll();
+})();
+</script>
+</body>
+</html>
